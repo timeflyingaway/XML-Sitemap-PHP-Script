@@ -28,13 +28,19 @@ sitemap for all your PDFs.
 
 ### Can I report issues?
 
-Absolutely, on this project's [GitHub](https://github.com/jdevalk/XML-Sitemap-PHP-Script).
+Absolutely, on this project's [GitHub]().
 
 ## License
 
 This script is licensed under the GPL v3.
 
 ## Changelog
+
+* 2024-07-16:
+    * Added support for searching both filename and path in multiple settings.
+    * Added Cache-Control header and Expires header settings.
+    * Added the ability to change the last modified time of a file to the latest file.
+    * Fixed the issue `priority` still displayed when it is 0.
 
 * 2022-12-06:
     * Changed the whole script to be a single class to avoid namespace clashes and modernize the code.

@@ -3,6 +3,7 @@
  * XML Sitemap PHP Script
  * For more info, see: https://github.com/jdevalk/XML-Sitemap-PHP-Script
  * Copyright (C), 2011 - 2022 - Joost de Valk, joost@joost.blog
+ * Copyright (C), 2024        - TimeFlyingAway, https://github.com/TimeFlyingAway
  */
 
 class Joost_XML_Sitemap_PHP {
