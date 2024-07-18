@@ -80,14 +80,32 @@ class Joost_XML_Sitemap_PHP {
 	private int $expire_time;
 
 	/**
+	 * The expire time used in header.
+	 */
+	private bool $localcache;
+
+	/**
+	 * The expire time used in header.
+	 */
+	private string $localcache_file;
+	
+	/**
+	 * The expire time used in header.
+	 */
+	private int $localcache_expire;
+
+	/**
 	 * Generates our XML sitemap.
 	 *
 	 * @return void
 	 */
 	public function generate(): void {
 		$this->read_ini();
-		$this->read_dir();
-		$this->output();
+		if ( ! $this->use_cache() ) {
+			$this->read_dir();
+			$this->output();
+		}
+		$this->set_headers();
 	}
 
 	/**
@@ -109,7 +127,7 @@ class Joost_XML_Sitemap_PHP {
 		$this->path         = (string) $config['directory'];
 		$this->url          = (string) $config['directory_url'];
 		$this->filetypes    = (array) $config['filetypes'];
-		$this->ignore       = array_merge( $config['ignore'], [ '.', '..', 'xml-sitemap.php' ] );
+		$this->ignore       = array_merge( $config['ignore'], [ '.', '..' ] );
 		$this->priority     = (float) $config['priority'];
 		$this->recursive    = (bool) $config['recursive'];
 		$this->replacements = (array) $config['replacements'];
@@ -117,6 +135,16 @@ class Joost_XML_Sitemap_PHP {
 		$this->xsl          = (string) $config['xsl'];
 		$this->cache_control = (string) $config['cache_control'];
 		$this->expire_time  = (int) $config['expire_time'];
+		$this->localcache   = (bool) $config['localcache'];
+		$this->localcache_file = (string) $config['localcache_file'];
+		$this->localcache_expire = (int) $config['localcache_expire'];
+
+		// Use HTTP_HOST from the request if empty.
+		if ( empty( $this->url ) ) {
+			$protocol = ( ! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443 ) ? "https://" : "http://";
+			$host = $_SERVER['HTTP_HOST'];
+			$this->url = $protocol . $host . '/';
+		}
 	}
 
 	/**
@@ -187,7 +215,7 @@ class Joost_XML_Sitemap_PHP {
 			if ( ! empty( $this->changefreq ) ) {
 				$output .= "\t" . '<changefreq>' . $this->changefreq . '</changefreq>' . PHP_EOL;
 			}
-			if ( $this->priority != 0 && $this->priority <= 1 ) {
+			if ( $this->priority > 0 && $this->priority <= 1 ) {
 				$output .= "\t" . '<priority>' . $this->priority . '</priority>' . PHP_EOL;
 			}
 			$output .= '</url>' . PHP_EOL;
@@ -198,14 +226,11 @@ class Joost_XML_Sitemap_PHP {
 	}
 
 	/**
-	 * Output our XML sitemap.
+	 * Set response headers.
 	 *
 	 * @return void
 	 */
-	private function output(): void {
-		$last_mod = date( 'c', $this->last_mod_date );
-		$output = str_replace('${last_mod_date}', $last_mod, $this->output);
-
+	private function set_headers(): void {
 		// Sent the correct header so browsers display properly, with or without XSL.
 		header( 'Content-Type: application/xml' );
 
@@ -214,14 +239,53 @@ class Joost_XML_Sitemap_PHP {
 		if ( $this->expire_time > 0 ) {
 			header("Expires: " . gmdate("D, d M Y H:i:s", time() + $this->expire_time) . " GMT");
 		}
+	}
 
-		echo '<?xml version="1.0" encoding="utf-8"?>' . PHP_EOL;
-		if ( ! empty( $this->xsl ) ) {
-			echo '<?xml-stylesheet type="text/xsl" href="' . $this->url . $this->xsl . '"?>' . PHP_EOL;
+	/**
+	 * Use cache if possible.
+	 *
+	 * @return bool
+	 */
+	private function use_cache(): bool {
+		if ( ! $this->localcache ) {
+			return false;
+		} else {
+			$lastModifiedTime = filemtime( $this->localcache_file );
+			if ( $lastModifiedTime + $this->localcache_expire < time() ) {
+				return false;
+			} else {
+				$cache = file_get_contents( $this->localcache_file );
+				header( 'X-Cache: HIT from localhost' );
+				echo $cache;
+				return true;
+			}
 		}
-		echo '<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
+	}
+
+	/**
+	 * Output our XML sitemap.
+	 *
+	 * @return void
+	 */
+	private function output(): void {
+		$head = '<?xml version="1.0" encoding="utf-8"?>' . PHP_EOL;
+		if ( ! empty( $this->xsl ) ) {
+			$head .= '<?xml-stylesheet type="text/xsl" href="' . $this->url . $this->xsl . '"?>' . PHP_EOL;
+		}
+		$head .= '<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
+
+		$last_mod = date( 'c', $this->last_mod_date );
+		$body = str_replace('${last_mod_date}', $last_mod, $this->output);
+
+		$foot = '</urlset>' . PHP_EOL;
+
+		$output = $head . $body . $foot;
 		echo $output;
-		echo '</urlset>' . PHP_EOL;
+
+		if ( $this->localcache ) {
+			header( 'X-Cache: MISS from localhost' );
+			file_put_contents( $this->localcache_file, $output );
+		}
 	}
 }
 

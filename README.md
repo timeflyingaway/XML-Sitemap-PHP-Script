@@ -36,6 +36,12 @@ This script is licensed under the GPL v3.
 
 ## Changelog
 
+* 2024-07-18:
+    * Add local cache for the sitemap.
+    * Now `directory_url` can use `HTTP_HOST` from the request automatically if it's not set.
+    * The script name is no longer automatically ignored.
+    * Optimize `priority` check.
+
 * 2024-07-16:
     * Added support for searching both filename and path in multiple settings.
     * Added Cache-Control header and Expires header settings.
